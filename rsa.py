@@ -1,55 +1,87 @@
+# rsa.py
 import random
 import math
 
-def is_prime(number):
-    if number < 2:
+# Sieve of Eratosthenes for small prime filtering
+def sieve(limit):
+    is_prime = [True] * (limit + 1)
+    is_prime[0:2] = [False, False]
+    for i in range(2, int(math.sqrt(limit)) + 1):
+        if is_prime[i]:
+            for j in range(i * i, limit + 1, i):
+                is_prime[j] = False
+    return [i for i, val in enumerate(is_prime) if val]
+
+# Miller–Rabin Primality Test
+def is_probable_prime(n, k=5):
+    if n < 2:
         return False
-    #By definition 1 is not a prime number
-    for i in range(2, int(math.sqrt(number)) + 1): #checking if a divisor exists only till root of number to reduce time complexity
-        if number % i == 0:
+    for p in [2,3,5,7,11,13,17,19,23,29]:
+        if n % p == 0:
+            return n == p
+    r, s = 0, n - 1
+    while s % 2 == 0:
+        r += 1
+        s //= 2
+    for _ in range(k):
+        a = random.randrange(2, n - 1)
+        x = pow(a, s, n)
+        if x in (1, n - 1):
+            continue
+        for _ in range(r - 1):
+            x = pow(x, 2, n)
+            if x == n - 1:
+                break
+        else:
             return False
-        #If no divisors exists then number is prime and so return true
     return True
 
-#Function to generate prime numbers between min and max values
-def generate_prime(min_value, max_value):
-    prime = random.randint(min_value, max_value)
-    #Randomly generating numbers 
-    while not is_prime(prime): #Keep generating untill the generated number is not prime
-        prime = random.randint(min_value, max_value)
-    return prime
+# Generate a large prime
+def generate_large_prime(bit_length, sieve_limit=100000):
+    small_primes = sieve(sieve_limit)
+    while True:
+        candidate = random.getrandbits(bit_length)
+        candidate |= (1 << (bit_length - 1)) | 1
+        if any(candidate % p == 0 for p in small_primes):
+            continue
+        if is_probable_prime(candidate):
+            return candidate
 
-def mod_inverse(e, phi): #Here, e is the public key (known by others), phi is the value of Euler's Totient Function(not known by others)
-    for d in range(3, phi):
-        if (d * e) % phi == 1:
-            return d
-        #d is the Private key generated for the passed value of the public key e
-    raise ValueError("Mod_inverse does not exist!")
+# Extended Euclidean Algorithm
+def mod_inverse(e, phi):
+    def egcd(a, b):
+        if b == 0:
+            return a, 1, 0
+        g, x1, y1 = egcd(b, a % b)
+        return g, y1, x1 - (a // b) * y1
+    g, x, _ = egcd(e, phi)
+    if g != 1:
+        raise ValueError("Modular inverse does not exist!")
+    return x % phi
 
-def generate_rsa_keys(min_value=1000, max_value=50000):
-    p, q = generate_prime(min_value, max_value), generate_prime(min_value, max_value)
+# RSA key gen
+def generate_rsa_keys(bits=1024):
+    p = generate_large_prime(bits // 2)
+    q = generate_large_prime(bits // 2)
     while p == q:
-        q = generate_prime(min_value, max_value)
-        #Keep generating p and q untill you get 2 non equal prime numbers
+        q = generate_large_prime(bits // 2)
     n = p * q
-    phi_n = (p - 1) * (q - 1) #Value of the Euler Totient Function
+    phi = (p - 1) * (q - 1)
+    e = 65537
+    if math.gcd(e, phi) != 1:
+        e = 3
+        while math.gcd(e, phi) != 1:
+            e += 2
+    d = mod_inverse(e, phi)
+    return (e, n), (d, n)
 
-    e = random.randint(3, phi_n - 1)
-    while math.gcd(e, phi_n) != 1:
-        e = random.randint(3, phi_n - 1)
-        #Finding a Public Key for the given phi value
-    d = mod_inverse(e, phi_n)
-
-    return (e, n), (d, n)  # public key, private key
-
-#Function to encrypt the messages using the Public Key and RSA Algo
-def encrypt_message(public_key, message):
+# Encrypt/decrypt UTF-8 messages
+def encrypt_message(public_key, message: str):
     e, n = public_key
-    encrypted_message = [pow(ord(char), e, n) for char in message]
-    return encrypted_message
+    data = message.encode('utf-8')
+    return [pow(b, e, n) for b in data]
 
-#Function decrypt the messages using the Private Key and RSA Algo
-def decrypt_message(private_key, encrypted_message):
+def decrypt_message(private_key, encrypted: list):
     d, n = private_key
-    decrypted_message = ''.join([chr(pow(char, d, n)) for char in encrypted_message])
-    return decrypted_message
+    data = bytes(pow(c, d, n) for c in encrypted)
+    return data.decode('utf-8')
