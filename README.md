@@ -8,3 +8,10 @@ if there is some traceback error in the terminal , then re execute the file in t
 to execute , locate the directory where the 2 files are stored, then use the "python chat_server.py" command followed by "python chat_client.py" in the 2 other terminals 
 type the respective names in the terminals , then start the conversation
 here , for the 2 clients to know what the other client is typing it must have the chat_server file open on his terminal, as the text comes as encrypted in chat_client terminal 
+# Steps to run
+1)Open terminal , give the command 'cd C:\Users\atrey\Desktop\your_chatroom', to wherever you folder containing the three files located.
+2)Run the server file using 'python chatserver.py'.
+3)Then open another 2 terminals as the two clients or the people talking to each other
+4)Similarly locate the client .py file using the cd command.
+5)Run it using 'python chatclient.py'.
+6)Type in the names and start messaging.
